@@ -2,9 +2,11 @@ name: PUC Natation Monitor
 
 on:
   schedule:
-    # Run every 2 minutes (30 times per hour)
-    - cron: "*/2 * * * *"
+    # Run every 5 minutes (more reliable than every 2 minutes)
+    - cron: "*/10 * * * *"
   workflow_dispatch: # Allow manual triggering
+  push:
+    branches: [main] # Also run on pushes to test
 
 jobs:
   monitor:
@@ -60,9 +62,11 @@ jobs:
           # FROM_PASSWORD: ${{ secrets.FROM_PASSWORD }}
           # TO_EMAIL: ${{ secrets.TO_EMAIL }}
         run: |
+          echo "Starting monitor check at $(date)"
           # Create a modified version that runs once instead of forever
           source .venv/bin/activate
           python src/web_monitoring_bots/monitor.py
+          echo "Monitor check completed at $(date)"
 
       - name: Upload cache
         uses: actions/upload-artifact@v4
