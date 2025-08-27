@@ -1,0 +1,131 @@
+[project]
+name = "web_monitoring_bots"
+version = "0.1.0"
+description = "A collection of bots for monitoring static content on webpages, and sending out alerts and notifications based on it"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Sagar Pal" }]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/web_monitoring_bots"]
+
+[dependency-groups]
+main = [
+    "requests>=2.31.0,<3.0.0",
+    "beautifulsoup4>=4.12.2,<5.0.0",
+    "lxml>=4.9.3,<5.0.0",
+    "python-dotenv>=1.0.1,<2.0.0",
+    "twilio>=8.1.0,<9.0.0",
+    "discord-webhook>=1.0.0,<2.0.0",
+    "python-telegram-bot>=20.0,<21.0",
+]
+dev = ["ruff>=0.12.3", "pytest>=8.3", "ipython>=8.29.0", "ipdb>=0.13.13"]
+
+[project.scripts]
+web-monitor = "monitor:main"
+
+[tool.uv]
+default-groups = ["main", "dev"]
+
+[tool.ruff]
+# Target Python version
+target-version = "py313"
+
+# Line length (black formatter convention)
+line-length = 88
+
+[tool.ruff.lint]
+# Enable flake8-bugbear (`B`) and Ruff-specific rules (`RUF`)
+# Plus isort (`I`), pycodestyle (`E`), and more common rulesets
+select = ["E", "F", "B", "I", "C90", "N", "UP", "RUF"]
+
+# Ignore specific rules
+ignore = [
+    # Add any rules you want to ignore
+    "E203", # Whitespace before ':' (conflicts with Black)
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.format]
+# Quote style
+quote-style = "double"
+# Indent style
+indent-style = "space"
+
+
+## Description of rule-sets selected for Ruff linting in [tool.ruff.lint] config
+# -------------------------------------------------------------------------------------
+### E - pycodestyle Error Checks
+# Purpose: Enforce Python style conventions from PEP 8
+# Why Important: Ensures consistent, readable code formatting across projects
+# Key Checks:
+#  - Indentation issues
+#  - Trailing whitespace
+#  - Line length violations
+#  - Incorrect use of whitespace around operators
+#
+### F - Pyflakes Checks
+# Purpose: Detect various programming errors
+# Why Important: Catches potential bugs before runtime, improves code quality
+# Key Checks:
+#  - Unused imports
+#  - Undefined names
+#  - Import shadowing
+#  - Syntax errors
+#
+### B - Bugbear Checks
+# Purpose: Find likely bugs and design problems
+# Why Important: Prevents common programming mistakes that can lead to subtle bugs
+# Key Checks:
+#  - Detecting unreachable code
+#  - Catching potential security issues
+#  - Identifying problematic function arguments
+#  - Warning about date/time manipulations
+#
+### I - isort Import Sorting
+# Purpose: Standardize and organize import statements
+# Why Important: Improves code readability and maintains a consistent import structure
+# Key Checks:
+#  - Sorting imports alphabetically
+#  - Grouping standard library, third-party, and local imports
+#  - Removing unused imports
+#
+### C90 - Complexity Checks
+# Purpose: Measure code complexity and maintainability
+# Why Important: Prevents overly complex, hard-to-maintain code
+# Key Checks:
+#  - Cyclomatic complexity
+#  - Function and method length
+#  - Nested block depth
+#
+### N - PEP 8 Naming Conventions
+# Purpose: Enforce consistent naming standards
+# Why Important: Ensures code follows Python's standard naming conventions
+# Key Checks:
+#  - Function, variable, class naming
+#  - Avoiding lowercase/uppercase misuse
+#  - Detecting invalid name formats
+#
+### UP - Pyupgrade Checks
+# Purpose: Upgrade syntax for newer Python versions
+# Why Important: Keeps code modern and leverages latest Python improvements
+# Key Checks:
+#  - Suggesting newer Python syntax
+#  - Identifying deprecated language features
+#  - Recommending more modern code constructs
+#
+### RUF - Ruff-specific Rules
+# Purpose: Ruff's own set of unique linting rules
+# Why Important: Provides additional, tool-specific code quality checks
+# Key Checks:
+#  - Advanced type checking
+#  - Performance optimizations
+#  - Ruff-specific best practices
