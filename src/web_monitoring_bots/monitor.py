@@ -437,7 +437,8 @@ def main():
 
     monitor = WebsiteMonitor(config_path)
     # monitor.run_forever()
-    monitor._dummy_check_for_changes()
+    # monitor._dummy_check_for_changes()
+    monitor.check_for_changes()
 
 
 if __name__ == "__main__":
