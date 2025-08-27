@@ -2,7 +2,7 @@ name: PUC Natation Monitor
 
 on:
   schedule:
-    # Run every 5 minutes (more reliable than every 2 minutes)
+    # Run every 10 minutes (reliable schedule)
     - cron: "*/10 * * * *"
   workflow_dispatch: # Allow manual triggering
   push:
@@ -38,12 +38,25 @@ jobs:
         run: |
           uv pip install .
 
+      # Fixed: Download cache from the same repository and workflow
       - name: Download previous cache
         uses: actions/download-artifact@v4
         with:
           name: content-cache
           path: .
+          # Add repository specification to ensure it looks in the right place
+          github-token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
+
+      # Check if cache file exists and show its contents for debugging
+      - name: Check cache file
+        run: |
+          echo "Checking for cache file..."
+          ls -la content_cache.json || echo "No cache file found (expected on first run)"
+          if [ -f content_cache.json ]; then
+            echo "Cache file contents:"
+            cat content_cache.json
+          fi
 
       - name: Run monitor check
         env:
@@ -52,26 +65,18 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
-          # MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
-          # MAILGUN_TO_EMAIL: ${{ secrets.MAILGUN_TO_EMAIL }}
-          # SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          # SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-          # SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          # FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-          # FROM_PASSWORD: ${{ secrets.FROM_PASSWORD }}
-          # TO_EMAIL: ${{ secrets.TO_EMAIL }}
         run: |
           echo "Starting monitor check at $(date)"
-          # Create a modified version that runs once instead of forever
-          source .venv/bin/activate
-          python src/web_monitoring_bots/monitor.py
+          # Use uv run instead of manual venv activation
+          uv run python src/web_monitoring_bots/monitor.py
           echo "Monitor check completed at $(date)"
 
+      # Fixed: Only upload if the cache file actually exists
       - name: Upload cache
         uses: actions/upload-artifact@v4
         with:
           name: content-cache
           path: content_cache.json
           retention-days: 90
-        if: always()
+        # Only upload if the file exists
+        if: always() && hashFiles('content_cache.json') != ''
