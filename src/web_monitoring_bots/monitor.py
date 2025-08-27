@@ -337,7 +337,16 @@ class WebsiteMonitor:
             logger.warning("Could not extract target text from page")
             return
 
-        print(current_text)
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        message = f"""
+        Time: {current_time}
+        Content: {current_text}
+        """
+
+        print(message)
+
+        self.notification_manager.send_discord(message)
 
         return None
 
