@@ -3,77 +3,71 @@ name: PUC Natation Monitor
 on:
   schedule:
     # Run every 2 minutes (30 times per hour)
-    - cron: '*/2 * * * *'
+    - cron: "*/2 * * * *"
   workflow_dispatch: # Allow manual triggering
 
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install tools
-      run: |
-        python -m pip install --upgrade pip
-        pip install uv
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
 
-    - name: Initialize venv
-      run: |
-        uv venv -p 3.11 --seed
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
 
-    - name: Install all project dependencies
-      run: |
-        uv sync
+      - name: Initialize venv
+        run: |
+          uv venv -p 3.11 --seed
 
-    - name: Install the web_monitoring_bots package
-      run: |
-        uv pip install .
+      - name: Install all project dependencies
+        run: |
+          uv sync
 
-    - name: Download previous cache
-      uses: actions/download-artifact@v3
-      with:
-        name: content-cache
-        path: .
-      continue-on-error: true
-      
-    - name: Run monitor check
-      env:
-        URL: ${{ secrets.URL }}
-        CHECK_INTERVAL: 4
-        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        # MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
-        # MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
-        # MAILGUN_TO_EMAIL: ${{ secrets.MAILGUN_TO_EMAIL }}
-        # SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-        # SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-        # SMTP_PORT: ${{ secrets.SMTP_PORT }}
-        # FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-        # FROM_PASSWORD: ${{ secrets.FROM_PASSWORD }}
-        # TO_EMAIL: ${{ secrets.TO_EMAIL }}
-      run: |
-        # Create a modified version that runs once instead of forever
-        source .venv/bin/activate
-        python -c "
-import sys
-sys.path.append('.')
-from monitor import WebsiteMonitor
-monitor = WebsiteMonitor()
-monitor._dummy_check_for_changes()
-"
-        
-    - name: Upload cache
-      uses: actions/upload-artifact@v3
-      with:
-        name: content-cache
-        path: content_cache.json
-        retention-days: 90
-      if: always()
+      - name: Install the web_monitoring_bots package
+        run: |
+          uv pip install .
+
+      - name: Download previous cache
+        uses: actions/download-artifact@v3
+        with:
+          name: content-cache
+          path: .
+        continue-on-error: true
+
+      - name: Run monitor check
+        env:
+          URL: ${{ secrets.URL }}
+          CHECK_INTERVAL: 4
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+          # MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          # MAILGUN_TO_EMAIL: ${{ secrets.MAILGUN_TO_EMAIL }}
+          # SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          # SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          # SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          # FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          # FROM_PASSWORD: ${{ secrets.FROM_PASSWORD }}
+          # TO_EMAIL: ${{ secrets.TO_EMAIL }}
+        run: |
+          # Create a modified version that runs once instead of forever
+          source .venv/bin/activate
+          python src/web_monitoring_bots/monitor.py
+
+      - name: Upload cache
+        uses: actions/upload-artifact@v3
+        with:
+          name: content-cache
+          path: content_cache.json
+          retention-days: 90
+        if: always()
