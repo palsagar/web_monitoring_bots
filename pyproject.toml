@@ -27,7 +27,7 @@ main = [
 dev = ["ruff>=0.12.3", "pytest>=8.3", "ipython>=8.29.0", "ipdb>=0.13.13"]
 
 [project.scripts]
-web-monitor = "monitor:main"
+web-monitor = "src.web_monitoring_bots.monitor:main"
 
 [tool.uv]
 default-groups = ["main", "dev"]

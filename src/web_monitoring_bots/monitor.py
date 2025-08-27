@@ -3,21 +3,20 @@ import json
 import logging
 import os
 import re
-import smtplib
 import time
 from datetime import datetime
-from email.mime.multipart import MimeMultipart
-from email.mime.text import MimeText
+from pathlib import Path
 from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
 
 # Configure logging
+log_path = Path().absolute() / "monitor.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.FileHandler("monitor.log"), logging.StreamHandler()],
+    handlers=[logging.FileHandler(log_path), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class NotificationManager:
     def __init__(self, config: dict[str, Any]):
         self.config = config
 
-    def send_temporary_email(self, subject: str, body: str):
+    def send_email(self, subject: str, body: str):
         """Send email using temporary/disposable email services"""
         try:
             # Using Mailgun (free tier: 5,000 emails/month)
@@ -38,14 +37,6 @@ class NotificationManager:
             # Using SendGrid (free tier: 100 emails/day)
             elif "sendgrid" in self.config:
                 return self._send_sendgrid(subject, body)
-
-            # Using temporary Gmail account
-            elif "temp_gmail" in self.config:
-                return self._send_temp_gmail(subject, body)
-
-            # Using Mailtrap (for testing)
-            elif "mailtrap" in self.config:
-                return self._send_mailtrap(subject, body)
 
         except Exception as e:
             logger.error(f"Error sending email: {e}")
@@ -94,124 +85,6 @@ class NotificationManager:
             logger.info("SendGrid email sent successfully")
         else:
             logger.error(f"SendGrid error: {response.text}")
-
-    def _send_temp_gmail(self, subject: str, body: str):
-        """Send via temporary Gmail account (traditional SMTP)"""
-        gmail_config = self.config["temp_gmail"]
-
-        msg = MimeMultipart()
-        msg["From"] = gmail_config["from_email"]
-        msg["To"] = gmail_config["to_email"]
-        msg["Subject"] = subject
-
-        msg.attach(MimeText(body, "plain", "utf-8"))
-
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(gmail_config["from_email"], gmail_config["app_password"])
-        text = msg.as_string()
-        server.sendmail(gmail_config["from_email"], gmail_config["to_email"], text)
-        server.quit()
-
-        logger.info("Temporary Gmail email sent successfully")
-
-    def _send_mailtrap(self, subject: str, body: str):
-        """Send via Mailtrap (testing service)"""
-        mailtrap_config = self.config["mailtrap"]
-
-        msg = MimeMultipart()
-        msg["From"] = mailtrap_config["from_email"]
-        msg["To"] = mailtrap_config["to_email"]
-        msg["Subject"] = subject
-
-        msg.attach(MimeText(body, "plain", "utf-8"))
-
-        server = smtplib.SMTP("live.smtp.mailtrap.io", 587)
-        server.starttls()
-        server.login(mailtrap_config["username"], mailtrap_config["password"])
-        text = msg.as_string()
-        server.sendmail(
-            mailtrap_config["from_email"], mailtrap_config["to_email"], text
-        )
-        server.quit()
-
-        logger.info("Mailtrap email sent successfully")
-
-    def send_sms(self, message: str):
-        """Send SMS notification"""
-        try:
-            # Using Twilio (popular SMS service)
-            if "twilio" in self.config:
-                return self._send_twilio_sms(message)
-
-            # Using Textbelt (simple SMS API)
-            elif "textbelt" in self.config:
-                return self._send_textbelt_sms(message)
-
-            # Using SMS API services
-            elif "smsapi" in self.config:
-                return self._send_smsapi(message)
-
-        except Exception as e:
-            logger.error(f"Error sending SMS: {e}")
-
-    def _send_twilio_sms(self, message: str):
-        """Send SMS via Twilio"""
-        from twilio.rest import Client
-
-        twilio_config = self.config["twilio"]
-
-        client = Client(twilio_config["account_sid"], twilio_config["auth_token"])
-
-        message = client.messages.create(
-            body=message,
-            from_=twilio_config["from_number"],
-            to=twilio_config["to_number"],
-        )
-
-        logger.info(f"Twilio SMS sent successfully: {message.sid}")
-
-    def _send_textbelt_sms(self, message: str):
-        """Send SMS via Textbelt (free option)"""
-        textbelt_config = self.config["textbelt"]
-
-        response = requests.post(
-            "https://textbelt.com/text",
-            {
-                "phone": textbelt_config["to_number"],
-                "message": message,
-                "key": textbelt_config.get(
-                    "api_key", "textbelt"
-                ),  # 'textbelt' for free tier
-            },
-        )
-
-        result = response.json()
-        if result.get("success"):
-            logger.info("Textbelt SMS sent successfully")
-        else:
-            logger.error(f"Textbelt error: {result.get('error')}")
-
-    def _send_smsapi(self, message: str):
-        """Send SMS via SMSAPI service"""
-        smsapi_config = self.config["smsapi"]
-
-        headers = {"Authorization": f"Bearer {smsapi_config['access_token']}"}
-
-        data = {
-            "to": smsapi_config["to_number"],
-            "message": message,
-            "from": "WebMonitor",
-        }
-
-        response = requests.post(
-            "https://api.smsapi.com/sms.do", headers=headers, data=data
-        )
-
-        if response.status_code == 200:
-            logger.info("SMSAPI SMS sent successfully")
-        else:
-            logger.error(f"SMSAPI error: {response.text}")
 
     def send_discord(self, message: str):
         """Send Discord notification via webhook"""
@@ -266,78 +139,11 @@ class NotificationManager:
         except Exception as e:
             logger.error(f"Error sending Telegram notification: {e}")
 
-    def send_slack(self, message: str):
-        """Send Slack notification"""
-        try:
-            if "slack" in self.config:
-                slack_config = self.config["slack"]
-
-                data = {
-                    "text": "🚨 Website Update Detected",
-                    "blocks": [
-                        {
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": f"*Website Update Detected*\n\n{message}",
-                            },
-                        }
-                    ],
-                }
-
-                response = requests.post(slack_config["webhook_url"], json=data)
-
-                if response.status_code == 200:
-                    logger.info("Slack notification sent successfully")
-                else:
-                    logger.error(f"Slack error: {response.text}")
-
-        except Exception as e:
-            logger.error(f"Error sending Slack notification: {e}")
-
-    def send_webhook(self, message: str):
-        """Send generic webhook notification"""
-        try:
-            if "webhook" in self.config:
-                webhook_config = self.config["webhook"]
-
-                payload = {
-                    "title": "Website Update Detected",
-                    "message": message,
-                    "timestamp": datetime.now().isoformat(),
-                    "url": webhook_config.get("source_url", ""),
-                }
-
-                headers = {"Content-Type": "application/json"}
-                if "headers" in webhook_config:
-                    headers.update(webhook_config["headers"])
-
-                response = requests.post(
-                    webhook_config["url"], json=payload, headers=headers
-                )
-
-                if response.status_code in [200, 201, 204]:
-                    logger.info("Webhook notification sent successfully")
-                else:
-                    logger.error(f"Webhook error: {response.text}")
-
-        except Exception as e:
-            logger.error(f"Error sending webhook notification: {e}")
-
     def send_all_notifications(self, subject: str, message: str):
         """Send notifications via all configured methods"""
         # Email notifications
-        if any(
-            key in self.config
-            for key in ["mailgun", "sendgrid", "temp_gmail", "mailtrap"]
-        ):
-            self.send_temporary_email(subject, message)
-
-        # SMS notifications
-        if any(key in self.config for key in ["twilio", "textbelt", "smsapi"]):
-            # Truncate message for SMS (160 char limit)
-            sms_message = message[:150] + "..." if len(message) > 150 else message
-            self.send_sms(sms_message)
+        if any(key in self.config for key in ["mailgun", "sendgrid"]):
+            self.send_email(subject, message)
 
         # Chat/messaging notifications
         if "discord" in self.config:
@@ -346,28 +152,26 @@ class NotificationManager:
         if "telegram" in self.config:
             self.send_telegram(message)
 
-        if "slack" in self.config:
-            self.send_slack(message)
 
-        if "webhook" in self.config:
-            self.send_webhook(message)
-
-
-class EnhancedWebsiteMonitor:
-    def __init__(self, config_file: str = "config.json"):
+class WebsiteMonitor:
+    def __init__(self, config_file: str = "configs/basic.json"):
+        # Use pathlib for path handling
+        self.base_dir = Path().absolute()
         self.config = self.load_config(config_file)
-        self.cache_file = "content_cache.json"
+        self.cache_file = self.base_dir / "content_cache.json"
         self.session = requests.Session()
         self.session.headers.update(
             {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 "
+                "Safari/537.36"
             }
         )
         self.notification_manager = NotificationManager(
             self.config.get("notifications", {})
         )
 
-    def load_config(self, config_file: str) -> dict[str, Any]:
+    def load_config(self, config_file: str) -> dict[str, Any]:  # noqa: C901
         """Load configuration from JSON file or environment variables"""
         default_config = {
             "url": "",
@@ -381,10 +185,23 @@ class EnhancedWebsiteMonitor:
             "notifications": {},
         }
 
+        # Convert to Path object and resolve relative to base directory
+        config_path = Path(config_file)
+        if not config_path.is_absolute():
+            # First check if it's in the package directory
+            package_config = Path(__file__).parent.parent.parent / config_file
+            if package_config.exists():
+                config_path = package_config
+            else:
+                # Fall back to current working directory
+                config_path = self.base_dir / config_file
+
+        logger.info(f"Loading config from: {config_path}")
+
         # Load from file
-        if os.path.exists(config_file):
+        if config_path.exists():
             try:
-                with open(config_file, encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     file_config = json.load(f)
                 default_config.update(file_config)
             except Exception as e:
@@ -412,25 +229,13 @@ class EnhancedWebsiteMonitor:
                 "chat_id": telegram_chat_id,
             }
 
-        # Twilio SMS
-        twilio_sid = os.getenv("TWILIO_ACCOUNT_SID")
-        twilio_token = os.getenv("TWILIO_AUTH_TOKEN")
-        twilio_from = os.getenv("TWILIO_FROM_NUMBER")
-        twilio_to = os.getenv("TWILIO_TO_NUMBER")
-        if all([twilio_sid, twilio_token, twilio_from, twilio_to]):
-            notification_config["twilio"] = {
-                "account_sid": twilio_sid,
-                "auth_token": twilio_token,
-                "from_number": twilio_from,
-                "to_number": twilio_to,
-            }
-
-        # Textbelt SMS (free option)
-        textbelt_to = os.getenv("TEXTBELT_TO_NUMBER")
-        if textbelt_to:
-            notification_config["textbelt"] = {
-                "to_number": textbelt_to,
-                "api_key": os.getenv("TEXTBELT_API_KEY", "textbelt"),
+        # SendGrid
+        sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+        sendgrid_to = os.getenv("SENDGRID_TO_EMAIL")
+        if all([sendgrid_api_key, sendgrid_to]):
+            notification_config["sendgrid"] = {
+                "api_key": sendgrid_api_key,
+                "to_email": sendgrid_to,
             }
 
         # Mailgun
@@ -455,25 +260,32 @@ class EnhancedWebsiteMonitor:
 
         keywords = self.config["target_text_keywords"]
 
-        # Search in all text elements
-        for element in soup.find_all(text=True):
-            text = element.strip()
-            if len(text) > self.config["min_text_length"] and all(
-                keyword.lower() in text.lower() for keyword in keywords
-            ):
-                clean_text = re.sub(r"\s+", " ", text).strip()
-                return clean_text
+        # Search in all text elements (using 'string' instead of deprecated 'text')
+        for element in soup.find_all(string=True):
+            if element and isinstance(element, str):
+                text = element.strip()
+                if (
+                    text
+                    and len(text) > self.config["min_text_length"]
+                    and all(keyword.lower() in text.lower() for keyword in keywords)
+                ):
+                    clean_text = re.sub(r"\s+", " ", text).strip()
+                    return clean_text
 
         # Alternative search in specific elements
         for tag in ["p", "div", "span", "article"]:
             elements = soup.find_all(tag)
             for elem in elements:
-                text = elem.get_text(strip=True)
-                if len(text) > self.config["min_text_length"] and all(
-                    keyword.lower() in text.lower() for keyword in keywords
-                ):
-                    clean_text = re.sub(r"\s+", " ", text).strip()
-                    return clean_text
+                if elem:
+                    text = elem.get_text(strip=True)
+                    if (
+                        text
+                        and isinstance(text, str)
+                        and len(text) > self.config["min_text_length"]
+                        and all(keyword.lower() in text.lower() for keyword in keywords)
+                    ):
+                        clean_text = re.sub(r"\s+", " ", text).strip()
+                        return clean_text
 
         logger.warning("Target text not found on the page")
         return None
@@ -490,7 +302,7 @@ class EnhancedWebsiteMonitor:
 
     def get_cached_content(self) -> dict[str, Any] | None:
         """Get previously cached content"""
-        if os.path.exists(self.cache_file):
+        if self.cache_file.exists():
             try:
                 with open(self.cache_file, encoding="utf-8") as f:
                     return json.load(f)
@@ -511,6 +323,23 @@ class EnhancedWebsiteMonitor:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error(f"Error saving cache: {e}")
+
+    def _dummy_check_for_changes(self):
+        """Dummy monitoring function"""
+        logger.info("Checking for changes...")
+
+        html_content = self.fetch_page_content()
+        if not html_content:
+            return
+
+        current_text = self.extract_target_text(html_content)
+        if not current_text:
+            logger.warning("Could not extract target text from page")
+            return
+
+        print(current_text)
+
+        return None
 
     def check_for_changes(self):
         """Main monitoring function"""
@@ -586,8 +415,20 @@ This is an automated alert from your website monitor.
 
 
 def main():
-    monitor = EnhancedWebsiteMonitor()
-    monitor.run_forever()
+    # Use default config file in configs folder
+    config_path = "configs/basic.json"
+
+    # Check if config exists, otherwise try to find it
+    config_file = Path(config_path)
+    if not config_file.exists():
+        # Try looking in the package directory
+        package_config = Path(__file__).parent.parent.parent / config_path
+        if package_config.exists():
+            config_path = str(package_config)
+
+    monitor = WebsiteMonitor(config_path)
+    # monitor.run_forever()
+    monitor._dummy_check_for_changes()
 
 
 if __name__ == "__main__":
