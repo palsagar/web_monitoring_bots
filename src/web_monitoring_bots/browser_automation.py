@@ -764,6 +764,8 @@ def find_config_from_env() -> dict[str, Any]:
             "chat_id": telegram_chat_id,
         }
 
+    default_config["notifications"] = notification_config
+
     # Username and password
     username = os.getenv("MONCLUB_USERNAME")
     password = os.getenv("MONCLUB_PASSWORD")
