@@ -11,10 +11,16 @@ from web_monitoring_bots.monitor import NotificationManager
 class PlaywrightWebMonitor:
     """Monitor authenticated websites using Playwright"""
 
-    def __init__(self, headless=False):
+    def __init__(self, headless=True):
         self.playwright = sync_playwright().start()
         self.browser = self.playwright.chromium.launch(
-            headless=headless, args=["--no-sandbox", "--disable-dev-shm-usage"]
+            headless=headless,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-setuid-sandbox",
+            ],
         )
         # Create context with persistent session
         self.context = self.browser.new_context(
@@ -773,10 +779,8 @@ if __name__ == "__main__":
     config = find_config_from_env()
 
     # Initialize the monitor
-    monitor = PlaywrightWebMonitor(headless=False)  # Set to True for headless mode
+    monitor = PlaywrightWebMonitor(headless=True)  # Set to True for headless mode
     notification_manager = NotificationManager(config.get("notifications", {}))
-
-    print(f"🔍 Config: {config}")
 
     # Initialize variables outside try block to avoid scope issues
     combined_string = ""
