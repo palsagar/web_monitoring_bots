@@ -1,5 +1,7 @@
 import json
 import os
+import traceback
+from typing import Any
 
 from playwright.sync_api import sync_playwright
 
@@ -347,7 +349,8 @@ class PlaywrightWebMonitor:
         for selector in selectors_to_try:
             if good_results_found and len(found_elements) > 5:
                 print(
-                    "  ✓ Stopping early - found sufficient results with previous selectors"
+                    "  ✓ Stopping early - found sufficient results with"
+                    " previous selectors"
                 )
                 break
             try:
@@ -692,10 +695,50 @@ class PlaywrightWebMonitor:
             self.playwright.stop()
 
 
+def find_config_from_env() -> dict[str, Any]:
+    default_config = {
+        "url": "",
+        "notifications": {},
+        "username": "",
+        "password": "",
+    }
+
+    # Override with environment variables
+    env_url = os.getenv("MONCLUB_URL")
+    if env_url:
+        default_config["url"] = env_url
+
+    # Load notification configs from environment
+    notification_config = {}
+
+    # Discord
+    discord_webhook = os.getenv("DISCORD_WEBHOOK_URL")
+    if discord_webhook:
+        notification_config["discord"] = {"webhook_url": discord_webhook}
+
+    # Telegram
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if telegram_bot_token and telegram_chat_id:
+        notification_config["telegram"] = {
+            "bot_token": telegram_bot_token,
+            "chat_id": telegram_chat_id,
+        }
+
+    # Username and password
+    username = os.getenv("MONCLUB_USERNAME")
+    password = os.getenv("MONCLUB_PASSWORD")
+    if username and password:
+        default_config["username"] = username
+        default_config["password"] = password
+
+    return default_config
+
+
 # Example usage
 if __name__ == "__main__":
-    with open("configs/basic.json") as f:
-        config = json.load(f)
+    config = find_config_from_env()
+
     # Initialize the monitor
     monitor = PlaywrightWebMonitor(headless=True)  # Set to True for headless mode
     notification_manager = NotificationManager(config.get("notifications", {}))
@@ -703,9 +746,10 @@ if __name__ == "__main__":
     try:
         # For MonClub app with popup login
         login_success = monitor.login_with_popup(
-            base_url="https://puc.monclub.app/app/60c3279efd32790020c20a2e",
-            username="sagar2204pal@gmail.com",
-            password="65#JfypgxXC!H&X$",
+            base_url=config["url"],
+            # base_url="https://puc.monclub.app/app/60c3279efd32790020c20a2e",
+            username=config["username"],
+            password=config["password"],
         )
 
         if login_success:
@@ -729,12 +773,20 @@ if __name__ == "__main__":
 
             # Save authentication state for future use
             monitor.save_state()
-            notification_manager.send_discord(
+            notification_manager.send_telegram(
                 message="New PUC Natation courses found:\n" + combined_string,
             )
 
     except Exception as e:
         print(f"❌ Error occurred: {e}")
+        notification_manager.send_telegram(
+            message="PUC Natation Monitor\n"
+            + str(e)
+            + "\n"
+            + traceback.format_exc()
+            + "\n"
+            + "Please check the logs for more details."
+        )
     else:
         if len(combined_string) > 0:
             notification_manager.send_telegram(

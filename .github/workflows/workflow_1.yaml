@@ -9,7 +9,7 @@ on:
     branches: [main] # Also run on pushes to test
 
 jobs:
-  monitor:
+  monitor-homepage:
     runs-on: ubuntu-latest
 
     steps:
@@ -75,6 +75,3 @@ jobs:
             echo "Cache file after run:"
             cat content_cache.json
           fi
-
-      # The cache action automatically saves the cache after the job
-      # No explicit upload step needed!

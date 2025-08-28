@@ -1,0 +1,72 @@
+name: PUC Natation - MONCLUB subscription monitor
+
+on:
+  schedule:
+    # Run every 15 minutes (reliable schedule)
+    - cron: "*/15 * * * *"
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches: [main] # Also run on pushes to test
+
+jobs:
+  monitor-subscriptions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+
+      - name: Initialize venv
+        run: |
+          uv venv -p 3.11 --seed
+
+      # Cache Playwright browsers to avoid downloading them every run
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}-
+
+      - name: Install all project dependencies
+        run: |
+          uv sync
+
+      - name: Install Playwright browsers (if not cached)
+        run: |
+          uv run playwright install chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+
+      - name: Install Playwright system dependencies (if cached)
+        run: |
+          uv run playwright install-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+
+      - name: Install the web_monitoring_bots package
+        run: |
+          uv pip install .
+
+      - name: Run monitor check
+        env:
+          MONCLUB_URL: ${{ secrets.MONCLUB_URL }}
+          MONCLUB_USERNAME: ${{ secrets.MONCLUB_USERNAME }}
+          MONCLUB_PASSWORD: ${{ secrets.MONCLUB_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          echo "Starting monitor check at $(date)"
+          uv run python src/web_monitoring_bots/browser_automation.py
+          echo "Monitor check completed at $(date)"
