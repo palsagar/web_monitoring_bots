@@ -5,6 +5,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from playwright.sync_api import sync_playwright
 
@@ -735,7 +736,7 @@ class PlaywrightWebMonitor:
         cache_data = {
             "text": text,
             "hash": text_hash,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(ZoneInfo("Europe/Paris")).isoformat(),
         }
         try:
             with open(self.cache_file, "w", encoding="utf-8") as f:

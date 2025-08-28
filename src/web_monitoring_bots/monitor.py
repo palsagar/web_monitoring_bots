@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
@@ -100,7 +101,9 @@ class NotificationManager:
                             "title": "🚨 Website Update Detected",
                             "description": message,
                             "color": 0xFF0000,  # Red color
-                            "timestamp": datetime.now().isoformat(),
+                            "timestamp": datetime.now(
+                                ZoneInfo("Europe/Paris")
+                            ).isoformat(),
                         }
                     ],
                 }
