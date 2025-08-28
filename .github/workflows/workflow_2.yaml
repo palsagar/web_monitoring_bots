@@ -58,6 +58,25 @@ jobs:
         run: |
           uv pip install .
 
+      # Simple cache restoration - just restore the cache file
+      - name: Restore content cache
+        uses: actions/cache@v4
+        with:
+          path: content_cache_2.json
+          key: content-cache-2
+          restore-keys: |
+            content-cache-2
+
+      # Check if cache file exists and show its contents for debugging
+      - name: Check cache file
+        run: |
+          echo "Checking for cache file..."
+          ls -la content_cache_2.json || echo "No cache file found (expected on first run)"
+          if [ -f content_cache_2.json ]; then
+            echo "Cache file contents:"
+            cat content_cache_2.json
+          fi
+
       - name: Run monitor check
         env:
           MONCLUB_URL: ${{ secrets.MONCLUB_URL }}
@@ -70,3 +89,9 @@ jobs:
           echo "Starting monitor check at $(date)"
           uv run python src/web_monitoring_bots/browser_automation.py
           echo "Monitor check completed at $(date)"
+
+          # Show cache file after run for debugging
+          if [ -f content_cache_2.json ]; then
+            echo "Cache file after run:"
+            cat content_cache_2.json
+          fi

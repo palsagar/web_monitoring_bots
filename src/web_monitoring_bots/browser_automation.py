@@ -1,6 +1,9 @@
+import hashlib
 import json
 import os
 import traceback
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from playwright.sync_api import sync_playwright
@@ -13,6 +16,8 @@ class PlaywrightWebMonitor:
 
     def __init__(self, headless=True):
         self.playwright = sync_playwright().start()
+        self.base_dir = Path().absolute()
+        self.cache_file = self.base_dir / "content_cache_2.json"
         self.browser = self.playwright.chromium.launch(
             headless=headless,
             args=[
@@ -715,6 +720,29 @@ class PlaywrightWebMonitor:
             return True
         return False
 
+    def get_cached_content(self) -> dict[str, Any] | None:
+        """Get previously cached content"""
+        if self.cache_file.exists():
+            try:
+                with open(self.cache_file, encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error reading cache: {e}")
+        return None
+
+    def save_cached_content(self, text: str, text_hash: str):
+        """Save content to cache"""
+        cache_data = {
+            "text": text,
+            "hash": text_hash,
+            "timestamp": datetime.now().isoformat(),
+        }
+        try:
+            with open(self.cache_file, "w", encoding="utf-8") as f:
+                json.dump(cache_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Error saving cache: {e}")
+
     def take_screenshot(self, filename="screenshot.png"):
         """Take screenshot"""
         self.page.screenshot(path=filename)
@@ -776,8 +804,7 @@ def find_config_from_env() -> dict[str, Any]:
     return default_config
 
 
-# Example usage
-if __name__ == "__main__":
+def main():
     config = find_config_from_env()
 
     # Initialize the monitor
@@ -819,10 +846,6 @@ if __name__ == "__main__":
             # Save authentication state for future use
             monitor.save_state()
 
-            if combined_string:
-                notification_manager.send_telegram(
-                    message="New PUC Natation courses found:\n" + combined_string,
-                )
         else:
             print("❌ Login failed, cannot proceed with course extraction")
             combined_string = "Login failed - unable to extract course offerings"
@@ -838,10 +861,40 @@ if __name__ == "__main__":
             + "Please check the logs for more details."
         )
     else:
-        if len(combined_string) > 0:
-            message = "PUC Natation Monitor\n" + combined_string
-            notification_manager.send_telegram(message=message)
-            notification_manager.send_discord(message=message)
+        current_hash = hashlib.md5(combined_string.encode("utf-8")).hexdigest()
+        # Check if there are any changes in the course offerings
+        cached_content = monitor.get_cached_content()
+
+        if not cached_content:
+            print("🔍 No cached content found, saving current content")
+            monitor.save_cached_content(combined_string, current_hash)
+            print(f"🔍 Current hash saved to cache: {current_hash}")
+        else:
+            if cached_content["hash"] != current_hash:
+                print("🔍 Changes detected in course offerings")
+                notification_manager.send_telegram(
+                    message="New PUC Natation courses found:\n" + combined_string,
+                )
+                notification_manager.send_discord(
+                    message="New PUC Natation courses found:\n" + combined_string,
+                )
+                monitor.save_cached_content(combined_string, current_hash)
+            else:
+                print("🔍 No changes detected in course offerings")
+                notification_manager.send_telegram(
+                    message="No changes detected in course offerings"
+                    + f"\n{cached_content['timestamp']}",
+                )
+                notification_manager.send_discord(
+                    message="No changes detected in course offerings"
+                    + f"\n{cached_content['timestamp']}",
+                )
+                monitor.save_cached_content(combined_string, current_hash)
     finally:
         # Clean up resources
         monitor.cleanup()
+
+
+# Example usage
+if __name__ == "__main__":
+    main()
