@@ -15,7 +15,7 @@ from web_monitoring_bots.monitor import NotificationManager
 def get_current_time() -> str:
     now_utc = datetime.now(UTC)
     now_paris = now_utc.astimezone(ZoneInfo("Europe/Paris"))
-    return now_paris.strftime("%Y-%m-%d_%H:%M:%S")
+    return now_paris.isoformat()
 
 
 class PlaywrightWebMonitor:
@@ -890,11 +890,11 @@ def main():
                 print("🔍 No changes detected in course offerings")
                 notification_manager.send_telegram(
                     message="No changes detected in course offerings"
-                    + f"\n{cached_content['timestamp']}",
+                    + f"\n{get_current_time()}",
                 )
                 notification_manager.send_discord(
                     message="No changes detected in course offerings"
-                    + f"\n{cached_content['timestamp']}",
+                    + f"\n{get_current_time()}",
                 )
                 monitor.save_cached_content(combined_string, current_hash)
     finally:
