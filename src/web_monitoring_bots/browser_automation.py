@@ -890,11 +890,11 @@ def main():
                 print("🔍 No changes detected in course offerings")
                 notification_manager.send_telegram(
                     message="No changes detected in course offerings"
-                    + f"\n{get_current_time()}",
+                    + f"\n{cached_content['timestamp']}",
                 )
                 notification_manager.send_discord(
                     message="No changes detected in course offerings"
-                    + f"\n{get_current_time()}",
+                    + f"\n{cached_content['timestamp']}",
                 )
                 monitor.save_cached_content(combined_string, current_hash)
     finally:

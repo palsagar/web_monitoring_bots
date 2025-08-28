@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Sagar Pal" }]
-dependencies = ["playwright>=1.54.0"]
+dependencies = [
+    "playwright>=1.54.0",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -24,7 +26,6 @@ main = [
     "twilio>=8.1.0,<9.0.0",
     "discord-webhook>=1.0.0,<2.0.0",
     "python-telegram-bot>=20.0,<21.0",
-    "tzdata>=2025.1,<2026.0",
 ]
 dev = ["ruff>=0.12.3", "pytest>=8.3", "ipython>=8.29.0", "ipdb>=0.13.13"]
 
