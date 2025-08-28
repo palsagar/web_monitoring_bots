@@ -49,10 +49,10 @@ jobs:
           uv run playwright install chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
 
-      - name: Install Playwright system dependencies (if cached)
-        run: |
-          uv run playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+      # - name: Install Playwright system dependencies (if cached)
+      #   run: |
+      #     uv run playwright install-deps chromium
+      #   if: steps.playwright-cache.outputs.cache-hit == 'true'
 
       - name: Install the web_monitoring_bots package
         run: |
