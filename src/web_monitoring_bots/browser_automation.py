@@ -11,7 +11,7 @@ from web_monitoring_bots.monitor import NotificationManager
 class PlaywrightWebMonitor:
     """Monitor authenticated websites using Playwright"""
 
-    def __init__(self, headless=True):
+    def __init__(self, headless=False):
         self.playwright = sync_playwright().start()
         self.browser = self.playwright.chromium.launch(
             headless=headless, args=["--no-sandbox", "--disable-dev-shm-usage"]
@@ -210,6 +210,15 @@ class PlaywrightWebMonitor:
             print("⏳ Waiting for login to complete...")
             self.page.wait_for_timeout(wait_after_login)
 
+            # Debug: Print current URL and page title
+            print(f"🔍 Current URL after login attempt: {self.page.url}")
+            try:
+                page_title = self.page.title()
+                print(f"🔍 Page title: {page_title}")
+            except Exception as e:
+                print(f"🔍 Error getting page title: {e}")
+                print("🔍 Could not get page title")
+
             # Check if login was successful by looking for indicators
             # The SE CONNECTER button should be gone or replaced
             login_success = False
@@ -225,24 +234,48 @@ class PlaywrightWebMonitor:
                     "[class*='logged-in']",
                     ".user-profile",
                     ".logout-button",
+                    # Add more common French indicators
+                    "button:has-text('PROFIL')",
+                    "button:has-text('COMPTE')",
+                    "a:has-text('Déconnexion')",
+                    "a:has-text('Mon compte')",
                 ]
 
+                print("🔍 Checking for logged-in indicators...")
                 for indicator in logged_in_indicators:
-                    if self.page.is_visible(indicator, timeout=1000):
-                        login_success = True
-                        print(f"  ✓ Found logged-in indicator: {indicator}")
-                        break
+                    try:
+                        if self.page.is_visible(indicator, timeout=1000):
+                            login_success = True
+                            print(f"  ✓ Found logged-in indicator: {indicator}")
+                            break
+                        else:
+                            print(f"  ⚪ Not found: {indicator}")
+                    except Exception as e:
+                        print(f"  ⚠️ Error checking {indicator}: {e}")
 
                 # Also check if the SE CONNECTER button is gone
                 if not login_success:
                     try:
-                        if not self.page.is_visible(
-                            "button:has-text('SE CONNECTER')", timeout=1000
-                        ):
+                        print("🔍 Checking if SE CONNECTER button is still visible...")
+                        se_connecter_visible = self.page.is_visible(
+                            "button:has-text('SE CONNECTER')", timeout=5000
+                        )
+                        if not se_connecter_visible:
                             login_success = True
                             print("  ✓ SE CONNECTER button is gone (good sign)")
+                        else:
+                            print(
+                                "  ❌ SE CONNECTER button is still visible"
+                                " (login may have failed)"
+                            )
                     except Exception as e:
                         print(f"  ⚠️ Error checking SE CONNECTER button: {e}")
+                        # If we can't find the button, assume it's gone (login success)
+                        login_success = True
+                        print(
+                            "  ✓ Cannot find SE CONNECTER button"
+                            " (assuming login success)"
+                        )
 
             except Exception as e:
                 print(f"  ⚠️ Error checking login status: {e}")
@@ -729,8 +762,8 @@ def find_config_from_env() -> dict[str, Any]:
     username = os.getenv("MONCLUB_USERNAME")
     password = os.getenv("MONCLUB_PASSWORD")
     if username and password:
-        default_config["username"] = username
-        default_config["password"] = password
+        default_config["username"] = username.strip("'\"")
+        default_config["password"] = password.strip("'\"")
 
     return default_config
 
@@ -740,8 +773,14 @@ if __name__ == "__main__":
     config = find_config_from_env()
 
     # Initialize the monitor
-    monitor = PlaywrightWebMonitor(headless=True)  # Set to True for headless mode
+    monitor = PlaywrightWebMonitor(headless=False)  # Set to True for headless mode
     notification_manager = NotificationManager(config.get("notifications", {}))
+
+    print(f"🔍 Config: {config}")
+
+    # Initialize variables outside try block to avoid scope issues
+    combined_string = ""
+    courses = []
 
     try:
         # For MonClub app with popup login
@@ -773,9 +812,14 @@ if __name__ == "__main__":
 
             # Save authentication state for future use
             monitor.save_state()
-            notification_manager.send_telegram(
-                message="New PUC Natation courses found:\n" + combined_string,
-            )
+
+            if combined_string:
+                notification_manager.send_telegram(
+                    message="New PUC Natation courses found:\n" + combined_string,
+                )
+        else:
+            print("❌ Login failed, cannot proceed with course extraction")
+            combined_string = "Login failed - unable to extract course offerings"
 
     except Exception as e:
         print(f"❌ Error occurred: {e}")
