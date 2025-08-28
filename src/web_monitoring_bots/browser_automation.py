@@ -2,7 +2,7 @@ import hashlib
 import json
 import os
 import traceback
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -10,6 +10,12 @@ from zoneinfo import ZoneInfo
 from playwright.sync_api import sync_playwright
 
 from web_monitoring_bots.monitor import NotificationManager
+
+
+def get_current_time() -> str:
+    now_utc = datetime.now(UTC)
+    now_paris = now_utc.astimezone(ZoneInfo("Europe/Paris"))
+    return now_paris.isoformat()
 
 
 class PlaywrightWebMonitor:
@@ -736,7 +742,7 @@ class PlaywrightWebMonitor:
         cache_data = {
             "text": text,
             "hash": text_hash,
-            "timestamp": datetime.now(ZoneInfo("Europe/Paris")).isoformat(),
+            "timestamp": get_current_time(),
         }
         try:
             with open(self.cache_file, "w", encoding="utf-8") as f:

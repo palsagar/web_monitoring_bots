@@ -4,13 +4,20 @@ import logging
 import os
 import re
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
+
+
+def get_current_time() -> str:
+    now_utc = datetime.now(UTC)
+    now_paris = now_utc.astimezone(ZoneInfo("Europe/Paris"))
+    return now_paris.isoformat()
+
 
 # Configure logging
 log_path = Path().absolute() / "monitor.log"
@@ -101,9 +108,7 @@ class NotificationManager:
                             "title": "🚨 Website Update Detected",
                             "description": message,
                             "color": 0xFF0000,  # Red color
-                            "timestamp": datetime.now(
-                                ZoneInfo("Europe/Paris")
-                            ).isoformat(),
+                            "timestamp": get_current_time(),
                         }
                     ],
                 }
@@ -318,7 +323,7 @@ class WebsiteMonitor:
         cache_data = {
             "text": text,
             "hash": text_hash,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": get_current_time(),
             "url": self.config["url"],
         }
         try:
@@ -340,7 +345,7 @@ class WebsiteMonitor:
             logger.warning("Could not extract target text from page")
             return
 
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        current_time = get_current_time()
 
         message = f"""
         Time: {current_time}
@@ -384,7 +389,7 @@ class WebsiteMonitor:
             message = f"""Content change detected on the PUC swimming website!
 
 URL: {self.config["url"]}
-Timestamp: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+Timestamp: {get_current_time()}
 
 PREVIOUS CONTENT:
 {cached_text}
