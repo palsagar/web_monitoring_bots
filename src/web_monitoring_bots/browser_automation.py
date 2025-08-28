@@ -839,9 +839,9 @@ if __name__ == "__main__":
         )
     else:
         if len(combined_string) > 0:
-            notification_manager.send_telegram(
-                message="PUC Natation Monitor\n" + combined_string
-            )
+            message = "PUC Natation Monitor\n" + combined_string
+            notification_manager.send_telegram(message=message)
+            notification_manager.send_discord(message=message)
     finally:
         # Clean up resources
         monitor.cleanup()
